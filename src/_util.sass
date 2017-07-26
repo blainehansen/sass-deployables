@@ -1,0 +1,102 @@
+@function map-set($map, $key, $value)
+	@return map-merge($map, ($key: $value))
+
+@function map-deep-get($map, $keys...)
+	@each $key in $keys
+		@if type-of($map) == 'map'
+			$map: map-get($map, $key)
+		@else
+			@return null
+
+	@return $map
+
+
+@function list-pop($list, $times: 1)
+	@if length($list) == $times
+		@return ()
+
+	$give-list: ()
+	$end-length: length($list) - $times
+	@for $i from 1 through $end-length
+		$give-list: append($give-list, nth($list, $i))
+
+	@return $give-list
+
+
+@function list-slice($list, $start-at, $end-at: null)
+	$give-list: ()
+	$list-length: length($list)
+
+	@if not $end-at
+		$end-at: $list-length
+	@else if $end-at < 0
+		$end-at: $list-length + $end-at
+
+	@for $i from $start-at through $end-at
+		$give-list: append($give-list, nth($list, $i))
+
+	@return $give-list
+
+
+@function map-deep-merge($map, $keys-and-merge...)
+	$merging-map: nth($keys-and-merge, -1)
+
+	$keys: list-pop($keys-and-merge)
+
+	$merged-map: ()
+	@while length($keys) > 0
+		$target-map: map-deep-get($map, $keys...)
+		$merged-map: map-merge($target-map, $merging-map)
+		$merged-map: (nth($keys, length($keys)): $merged-map)
+
+		$merging-map: $merged-map
+
+		$keys: list-pop($keys)
+
+	@return map-merge($map, $merged-map)
+
+
+@function map-deep-set($map, $keys-and-value...)
+	$merge-map: (nth($keys-and-value, -2): nth($keys-and-value, -1))
+
+	$keys: list-pop($keys-and-value, 2)
+	$keys-and-merge: append($keys, $merge-map)
+
+	@return map-deep-merge($map, $keys-and-merge...)
+
+
+@function map-deep-has-key($map, $keys...)
+	$check-key: nth($keys, -1)
+	$keys: list-pop($keys)
+
+	$check-map: map-deep-get($map, $keys...)
+	@if $check-map
+		@return map-has-key($check-map, $check-key)
+
+	@else
+		@return false
+
+// $hell-map: (key: (next: (other: (thing: red))), various: empty, keys: here)
+// @debug map-deep-merge($hell-map, key, next, other, (stuff: green))
+// @debug map-deep-set($hell-map, key, next, other, stuff, green)
+// @debug map-deep-set($hell-map, key, next, other, thing, green)
+
+
+@function map-deep-push($map, $keys-and-value...)
+	$value: nth($keys-and-value, -1)
+
+	$keys: list-pop($keys-and-value)
+
+	$array: map-deep-get($map, $keys...)
+	@if not $array
+		$array: ()
+
+	$array: append($array, $value)
+
+
+	$keys-and-array: append($keys, $array)
+
+	@return map-deep-set($map, $keys-and-array...)
+
+// $buried-list: (key: (next: (other: (obj, thing, stuff, man))))
+// @debug map-deep-push($buried-list, key, next, other, dude)

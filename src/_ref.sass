@@ -1,0 +1,32 @@
+// possible format
+$reference-component: (
+	-prefix: '.deployable',
+	-versions: (
+		-default: (
+			-state: (color: red),
+			-base: (
+				(color, color),
+				(border-color, color),
+				(background-color, adjust-hue, 'this.color', 180deg),
+			),
+			'.nested-block': (
+				(box-shadow, color)
+			)
+		),
+		'.primary': (
+			-state: (color: blue),
+			-base: (
+				(background-color, adjust-hue, 'this.color', 90deg),
+			)
+		),
+		'.success': (
+			-state: (color: green)
+		)
+	),
+	-transforms: (
+		':hover': (
+			-actions: ( color: (fade-out, 'this.color', 0.1) )
+			-base: ()
+		)
+	)
+)

@@ -1,0 +1,367 @@
+@import 'util'
+
+/// CORE
+
+@function -dy-amp()
+	@if not &
+		@error "Behavior not allowed. You can't declare Deployables at the root scope."
+	@else if length(&) != 1
+		@error "Behavior not allowed. You can't declare Deployables in comma separated selectors"
+
+	// @return -dy-sanify-selector(#{&})
+	@return #{&}
+
+
+$-dy-blank-version: ('-state': (), '-base': ())
+$-dy-blank-transform: ('-actions': (), '-base': ())
+
+
+
+/// BUILD
+
+@mixin -dy-output-in-version($version-name)
+	@if $version-name == '-default'
+		@content
+	@else
+		&#{$version-name}
+			@content
+
+@mixin -dy-output-in-block($block-name)
+	@if $block-name == '-base'
+		@content
+	@else
+		#{$block-name}
+			@content
+
+
+@function -dy-resolve-state-refs($state, $func-args)
+	@for $i from 1 through length($func-args)
+		$arg: nth($func-args, $i)
+		@if type-of($arg) == 'string' and str-slice($arg, 1, 5) == 'this.'
+			$state-name: str-slice($arg, 6)
+
+			$state-val: map-get($state, $state-name)
+			$func-args: set-nth($func-args, $i, $state-val)
+
+	@return $func-args
+
+
+@mixin -dy-apply-outputs($state, $outputs)
+	@each $output in $outputs
+		@if length($output) == 2
+			$css-name: nth($output, 1)
+			$state-name: nth($output, 2)
+
+			$val: map-get($state, $state-name)
+			#{$css-name}: $val
+
+		@else
+			$css-name: nth($output, 1)
+			$func: nth($output, 2)
+			$func-args: list-slice($output, 3)
+
+			// make sure 'this.' args are resolved
+			$func-args: -dy-resolve-state-refs($state, $func-args)
+
+			$val: call($func, $func-args...)
+			#{$css-name}: $val
+
+
+@function -dy-merge-outputs($default-outputs, $outputs)
+	// if the default has an item with a first element
+	// that the outputs doesn't also have an item with the same first element
+	// copy over the thing from the default
+
+	@each $default-output in $default-outputs
+		$default-key: nth($default-output, 1)
+
+		$have-found: false
+		$i: 1
+		@while not $have-found and $i <= length($outputs)
+			$output: nth($outputs, $i)
+			$key: nth($output, 1)
+
+			// if the list has the same key, nothing should happen
+			@if $default-key == $key
+				$have-found: true
+
+			$i: $i + 1
+
+		// only if the list doesn't have the key at all should it be added
+		@if not $have-found
+			$outputs: append($outputs, $default-output)
+
+	@return $outputs
+
+
+@function -dy-fill-blocks($default-blocks, $blocks)
+	// ensure the give has all keys that the default has
+	$blocks: map-merge($default-blocks, $blocks)
+
+	@each $block-name, $block-outputs in $blocks
+		$default-block-outputs: map-get($default-blocks, $block-name)
+		@if not $default-block-outputs
+			$default-block-outputs: ()
+
+		$block-outputs: -dy-merge-outputs($default-block-outputs, $block-outputs)
+
+		$blocks: map-set($blocks, $block-name, $block-outputs)
+
+	@return $blocks
+
+
+
+@mixin dy-build($component, $compound: null)
+	$transforms: map-get($component, '-transforms')
+	$versions: map-get($component, '-versions')
+
+	// first we really should save and output the default
+	// grab the entire default thing
+	$default-blocks: map-get($versions, '-default')
+	// get the default state map
+	$default-state: map-get($default-blocks, '-state')
+	// strip out the default state map
+	$default-blocks: map-remove($default-blocks, '-state')
+
+	// for all versions, including default
+	@each $version-name, $version-blocks in $versions
+		+-dy-output-in-version($version-name)
+
+			// create state map, filling in with default state map (if not default)
+			$version-state: ()
+			@if $version-name == '-default'
+				$version-state: $default-state
+
+			@else
+				$version-state: map-get($version-blocks, '-state')
+				$version-state: map-merge($default-state, $version-state)
+
+			$version-blocks: map-remove($version-blocks, '-state')
+
+			// fill in block with defaults (if not default)
+			@if $version-name != '-default'
+				$version-blocks: -dy-fill-blocks($default-blocks, $version-blocks)
+
+			// for all blocks
+			@each $version-block-name, $version-block-outputs in $version-blocks
+
+				// output block with the state map
+				+-dy-output-in-block($version-block-name)
+					+-dy-apply-outputs($version-state, $version-block-outputs)
+
+			// for all transforms
+			@each $transform-name, $transform-blocks in $transforms
+				&#{$transform-name}
+
+					// create transformed state map for this version
+					$transform-actions: map-get($transform-blocks, '-actions')
+					$transform-blocks: map-remove($transform-blocks, '-actions')
+
+					$transform-state: ()
+					// now actually do the transformation
+					@each $var, $action in $transform-actions
+						$func: nth($action, 1)
+						$func-args: list-slice($action, 2)
+
+						$func-args: -dy-resolve-state-refs($version-state, $func-args)
+
+						$transformed-value: call($func, $func-args...)
+						$transform-state: map-set($transform-state, $var, $transformed-value)
+
+					$transform-state: map-merge($version-state, $transform-state)
+
+
+					$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
+
+					// for all blocks
+					@each $transform-block-name, $transform-block-outputs in $transform-blocks
+						// output block with transformed state map
+						+-dy-output-in-block($transform-block-name)
+							+-dy-apply-outputs($transform-state, $transform-block-outputs)
+
+
+
+/// CREATE
+
+@function -dy-get-prefix($component)
+	@return map-get($component, '-prefix')
+
+
+@function -dy-remove-prefix($prefix, $amp)
+	@return str-slice($amp, str-length($prefix) + 1)
+
+
+@function -dy-resolve-scope($component)
+	$prefix: -dy-get-prefix($component)
+
+	$scope: -dy-remove-prefix($prefix, -dy-amp())
+
+	@return $scope
+
+
+// are we in a nested block? or the -base?
+@function -dy-find-block($scope)
+	$space-index: str-index($scope, ' ')
+
+	@if not $space-index
+		@return ''
+
+	@else
+		// TODO make the *last* index of space
+		@return str-slice($scope, $space-index + 1)
+
+
+@function -dy-trim-block($scope, $block)
+	// return just the part *before* block
+	$block-start-index: str-index($scope, $block)
+	@return str-slice($scope, 1, $block-start-index - 2)
+
+
+// figure out if we're in a version or a transform
+@function -dy-get-type($component, $scope)
+	$versions: map-get($component, '-versions')
+	@if map-has-key($versions, $scope)
+		@return '-versions'
+
+	$transforms: map-get($component, '-transforms')
+	@if map-has-key($transforms, $scope)
+		@return '-transforms'
+
+	@error "this scope doesn't exist as a version or a transform"
+
+
+
+// @function dy-deployable($parent-component: null, $compound: true)
+@function dy-deployable($parent-component: null)
+	// TODO need to ensure this is being used in a legal place
+
+	$component: ()
+	@if $parent-component
+		$component: $parent-component
+
+	$component: map-set($component, '-prefix', -dy-amp())
+
+	@return $component
+
+
+@mixin dy-extend($parent-component)
+	$parent-prefix: map-get($parent-component, '-prefix')
+	@extend #{$parent-prefix}
+
+
+@function -dy-ensure-scope($component, $type, $scope)
+	@if not map-has-key($component, $type)
+		$component: map-set($component, $type, ())
+
+	$obj: map-get($component, $type)
+	@if not map-has-key($obj, $scope)
+		@if $type == '-versions'
+			$component: map-deep-set($component, $type, $scope, $-dy-blank-version)
+		@else if $type == '-transforms'
+			$component: map-deep-set($component, $type, $scope, $-dy-blank-transform)
+
+	@return $component
+
+
+@function -dy-define-state-internal($component, $type, $scope, $name, $value)
+	$component: -dy-ensure-scope($component, $type, $scope)
+
+	$state-or-actions: '-state'
+	@if $type == '-transforms'
+		$state-or-actions: '-actions'
+
+	@return map-deep-set($component, $type, $scope, $state-or-actions, $name, $value)
+
+
+@function dy-define-state($component, $name, $value)
+	// if the prefix of the component doesn't agree with the current amp, then this isn't a valid place
+	$prefix: map-get($component, '-prefix')
+	$current: -dy-amp()
+	@if $prefix != $current
+		@if str-index($current, ' ')
+			@error "ERROR, invalid location to set state"
+
+		@error "ERROR, can't call dy-define-state in versions or transforms"
+
+	// @if map-deep-has-key($component, $type: '-versions', $scope: '-default', $name: $name)
+	// 	@error "ERROR, can't override an existing state variable in the same version."
+
+	$component: -dy-define-state-internal($component, $type: '-versions', $scope: '-default', $name: $name, $value: $value)
+
+	@return $component
+
+
+@function dy-define-version($component, $name, $value)
+	$prefix: map-get($component, '-prefix')
+	$current: -dy-amp()
+	@if $prefix == $current
+		@error "ERROR, can't create a version at the base"
+
+	@if str-index($current, ' ')
+		@error "ERROR, can't create a version in a nested block. you must be in a modified form of the base"
+
+	$scope: -dy-resolve-scope($component)
+	$type: '-versions'
+
+	@if map-deep-has-key($component, '-transforms', $scope)
+		@error "ERROR, can't mingle versions and transforms"
+
+	$component: -dy-define-state-internal($component, $type, $scope, $name, $value)
+
+	@return $component
+
+
+@function dy-define-transform($component, $name, $func, $func-args...)
+	$prefix: map-get($component, '-prefix')
+	$current: -dy-amp()
+	@if $prefix == $current
+		@error "ERROR, can't create a transform at the base"
+
+	@if str-index($current, ' ')
+		@error "ERROR, can't create a transform in a nested block. you must be in a modified form of the base"
+
+	$scope: -dy-resolve-scope($component)
+	$type: '-transforms'
+
+	@if map-deep-has-key($component, '-versions', $scope)
+		@error "ERROR, can't mingle versions and transforms"
+	
+	// then set the real thing
+	$value-arr: join(($func), $func-args)
+
+	$component: -dy-define-state-internal($component, $type, $scope, $name, $value-arr)
+
+	@return $component
+
+
+@function -dy-output-internal($component, $value)
+	$scope: -dy-resolve-scope($component)
+
+	// are we in a nested block? or the -base?
+	$block: -dy-find-block($scope)
+	$scope: -dy-trim-block($scope, $block)
+
+	@if not $scope or $scope == ''
+		$scope: '-default'
+
+	@if not $block or $block == ''
+		$block: '-base'
+
+	// are we in a version or transform?
+	$type: -dy-get-type($component, $scope)
+
+	@return map-deep-push($component, $type, $scope, $block, $value)
+
+
+@function dy-output($component, $css-name, $var-name: null)
+	@if not $var-name
+		$var-name: $css-name
+
+	@return -dy-output-internal($component, ($css-name, $var-name))
+
+
+@function dy-output-function($component, $css-name, $func, $func-args...)
+	$value-arr: ($css-name, $func)
+	$value-arr: join($value-arr, $func-args)
+
+	@return -dy-output-internal($component, $value-arr)
