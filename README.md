@@ -151,8 +151,6 @@ Deployables are made of a few core concepts:
 - Transforms. Changes that should be applied to the state variables no matter what they are.
 - References, or the Content. The uses of the state variables, made in the content of the component.
 
-Read on to understand each in more depth.
-
 
 ## States
 
