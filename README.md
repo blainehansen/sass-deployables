@@ -2,6 +2,14 @@
 
 > A library for creating object-oriented sass components.
 
+**Proudly sponsored by Marketdial**
+
+<p>
+<a href="http://marketdial.com">
+<img src="https://cdn.rawgit.com/blainehansen/sass-deployables/master/marketdial-logo.svg" alt="MarketDial logo" title="MarketDial" width="35%">
+</a>
+</p>
+
 ---
 
 Deployables allow you to define a component with internal state properties, which you can then reference from the content of the component. Then you can define different versions and transformations of the component, with different values of those state properties, and the changes you make will cascade to all the references.

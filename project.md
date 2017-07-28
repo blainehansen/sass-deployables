@@ -9,11 +9,6 @@ functions
 - X dy-apply-function
 - X dy-build
 
-quickly useable spec
-- fully explained example
-- make error states and requirements line up with spec
--- state overrides
-
 make safe
 - disallow overlapping states on different versions
 - more complex selectors
