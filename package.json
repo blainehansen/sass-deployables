@@ -1,6 +1,6 @@
 {
   "name": "sass-deployables",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A library for creating object-oriented sass components.",
   "main": "src/main.sass",
   "scripts": {
@@ -13,7 +13,18 @@
     "url": "https://github.com/blainehansen/sass-deployables"
   },
   "keywords": [
-    "sass", "deployable", "component", "object", "oriented", "property", "version", "transform", "state", "variables", "internal", "hover"
+    "sass",
+    "deployable",
+    "component",
+    "object",
+    "oriented",
+    "property",
+    "version",
+    "transform",
+    "state",
+    "variables",
+    "internal",
+    "hover"
   ],
   "author": {
     "name": "Blaine Hansen",
