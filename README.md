@@ -12,6 +12,22 @@
 
 ---
 
+```bash
+npm install --save sass-deployables
+```
+
+```sass
+@import 'path/to/node_modules/sass-deployables'
+
+// for example, if using webpack node-sass
+@import '~sass-deployables'
+
+.component
+  $component: dy-deployable()
+```
+
+--- 
+
 Deployables allow you to define a component with internal state properties, which you can then reference from the content of the component. Then you can define different versions and transformations of the component, with different values of those state properties, and the changes you make will cascade to all the references.
 
 Here's a basic example.
