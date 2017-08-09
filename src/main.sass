@@ -150,34 +150,35 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 					+-dy-apply-outputs($version-state, $version-block-outputs)
 
 			// for all transforms
-			@each $transform-name, $transform-blocks in $transforms
-				&#{$transform-name}
+			@if $transforms
+				@each $transform-name, $transform-blocks in $transforms
+					&#{$transform-name}
 
-					// create transformed state map for this version
-					$transform-actions: map-get($transform-blocks, '-actions')
-					$transform-blocks: map-remove($transform-blocks, '-actions')
+						// create transformed state map for this version
+						$transform-actions: map-get($transform-blocks, '-actions')
+						$transform-blocks: map-remove($transform-blocks, '-actions')
 
-					$transform-state: ()
-					// now actually do the transformation
-					@each $var, $action in $transform-actions
-						$func: nth($action, 1)
-						$func-args: list-slice($action, 2)
+						$transform-state: ()
+						// now actually do the transformation
+						@each $var, $action in $transform-actions
+							$func: nth($action, 1)
+							$func-args: list-slice($action, 2)
 
-						$func-args: -dy-resolve-state-refs($version-state, $func-args)
+							$func-args: -dy-resolve-state-refs($version-state, $func-args)
 
-						$transformed-value: call($func, $func-args...)
-						$transform-state: map-set($transform-state, $var, $transformed-value)
+							$transformed-value: call($func, $func-args...)
+							$transform-state: map-set($transform-state, $var, $transformed-value)
 
-					$transform-state: map-merge($version-state, $transform-state)
+						$transform-state: map-merge($version-state, $transform-state)
 
 
-					$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
+						$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
 
-					// for all blocks
-					@each $transform-block-name, $transform-block-outputs in $transform-blocks
-						// output block with transformed state map
-						+-dy-output-in-block($transform-block-name)
-							+-dy-apply-outputs($transform-state, $transform-block-outputs)
+						// for all blocks
+						@each $transform-block-name, $transform-block-outputs in $transform-blocks
+							// output block with transformed state map
+							+-dy-output-in-block($transform-block-name)
+								+-dy-apply-outputs($transform-state, $transform-block-outputs)
 
 
 

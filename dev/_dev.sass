@@ -44,3 +44,11 @@
 	@debug $component
 
 	+dy-build($component)
+
+.no-transforms
+	$c: dy-deployable()
+
+	$c: dy-define-state($c, color, red)
+	$c: dy-output($c, color)
+
+	+dy-build($c)
