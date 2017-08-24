@@ -158,13 +158,13 @@ Using Deployables will help you cut down on a huge amount of redundancy.
 
 There are six mixins to create Deployables, and one to build them.
 
-- `@mixin dy-deployable($parent-component: null)`
+- `@mixin dy-deployable($parent-selector: null)`
 - `@mixin dy-define-state($name, $value)`
 - `@mixin dy-define-version($name, $value)`
 - `@mixin dy-define-transform($name, $func, $func-args...)`
 - `@mixin dy-output($css-prop, $var-name: null)`
 - `@mixin dy-output-function($css-prop, $func, $func-args...)`
-- `@mixin dy-build($c)`
+- `@mixin dy-build`
 
 Thorough explanations are given below.
 
