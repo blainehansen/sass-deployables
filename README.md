@@ -23,7 +23,7 @@ npm install --save sass-deployables
 @import '~sass-deployables'
 
 .component
-  $component: dy-deployable()
+  $c: dy-deployable()
 ```
 
 --- 
@@ -82,26 +82,26 @@ This gets much more powerful when you have more references, versions, and transf
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
   width: 100%
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
   .nested-block
-    $component: dy-output($component, border-color, color)
-    $component: dy-output-function($component, background-color, adjust-hue, 'this.color', 180)
+    $c: dy-output($c, border-color, color)
+    $c: dy-output-function($c, background-color, adjust-hue, 'this.color', 180)
 
   &.primary
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
     
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
   &:hover
-    $component: dy-define-transform($component, lighten, 'this.color', 10%)
+    $c: dy-define-transform($c, lighten, 'this.color', 10%)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 Compiles to something like:
 
@@ -157,12 +157,12 @@ Using Deployables will help you cut down on a huge amount of redundancy.
 There are six functions to create Deployables, and one mixin to build them.
 
 - `@function dy-deployable($parent-component: null)`
-- `@function dy-define-state($component, $name, $value)`
-- `@function dy-define-version($component, $name, $value)`
-- `@function dy-define-transform($component, $name, $func, $func-args...)`
-- `@function dy-output($component, $css-prop, $var-name: null)`
-- `@function dy-output-function($component, $css-prop, $func, $func-args...)`
-- `@mixin dy-build($component)`
+- `@function dy-define-state($c, $name, $value)`
+- `@function dy-define-version($c, $name, $value)`
+- `@function dy-define-transform($c, $name, $func, $func-args...)`
+- `@function dy-output($c, $css-prop, $var-name: null)`
+- `@function dy-output-function($c, $css-prop, $func, $func-args...)`
+- `@mixin dy-build($c)`
 
 Thorough explanations are given below.
 
@@ -183,9 +183,9 @@ Defining a new state variable is simple. Just call `dy-define-state` in the base
 ```sass
 .deployable
   // initialize
-  $component: dy-deployable()
+  $c: dy-deployable()
   // everything at the base of the component is the "default" version
-  $component: dy-define-state($component, color, gray)
+  $c: dy-define-state($c, color, gray)
 ```
 
 Now that variable can be referred to in the content, given different values in different versions, and changed in transforms.
@@ -194,19 +194,95 @@ Now that variable can be referred to in the content, given different values in d
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
   .nested-block
     // -> ERROR, invalid location to set deployable state
-    $component: dy-define-state($component, color, green)
-    $component: dy-output($component, color)
+    $c: dy-define-state($c, color, green)
+    $c: dy-output($c, color)
 
   &.primary
     // -> ERROR, can't call dy-define-state in version
     // use dy-define-version instead
-    $component: dy-define-state($component, color, red)
+    $c: dy-define-state($c, color, red)
 ```
+
+
+## Content References
+
+In order to output the state values in a way that will be remembered and used for every Version, you can use the `dy-output` and `dy-output-function` functions. You can even call these functions in nested blocks, and they'll still work exactly as expected.
+
+```sass
+.deployable-component
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
+
+  // has two forms
+  // one that outputs to the css property with the same name
+  $c: dy-output($c, color)
+  // -> color: the value of color
+
+  // and one that outputs to a named css property
+  $c: dy-output($c, border-color, color)
+  // -> border-color: the value of color
+
+
+  // supply the css property to be output to,
+  // the function name,
+  // and the list of arguments,
+  // using the format 'this.statevar' to refer to state properties
+  $c: dy-output-function($c, background-color, adjust-hue, 'this.color', 180)
+
+
+  .nested-block
+    // every version will have a .nested-block with the appropriate background-color
+    $c: dy-output($c, background-color, color)
+
+
+  // ... versions and transforms ...
+
+  +dy-build($c)
+```
+
+
+### Content Overrides
+
+In different Versions and Transforms, you can override the content outputs, or add new ones.
+
+```sass
+.deployable-component
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
+
+  $c: dy-output($c, color)
+  $c: dy-output($c, border-color, color)
+
+  &.primary
+    $c: dy-define-state($c, color, green)
+
+    // this will override the normal "border-color: color" output
+    $c: dy-output-function($c, border-color, lighten, 'this.color', 10%)
+
+    // this will only output for this version
+    $c: dy-output($c, background-color, color)
+    
+
+  +dy-build($c)
+```
+Compiles to something like:
+
+```sass
+.deployable-component
+  color: red
+  border-color: red
+
+  &.primary
+    color: green
+    border-color: lighten(green, 10%)
+    background-color: green
+```
+
 
 
 ## Versions
@@ -217,25 +293,25 @@ A common example is different kinds of buttons:
 
 ```sass
 .button
-  $component: dy-deployable()
+  $c: dy-deployable()
 
   // the default value
-  $component: dy-define-state($component, color, black)
+  $c: dy-define-state($c, color, black)
 
-  $component: dy-output($component, color)
-  $component: dy-output($component, border-color, color)
-  $component: dy-output-function($component, background-color, lighten, 'this.color', 90%)
+  $c: dy-output($c, color)
+  $c: dy-output($c, border-color, color)
+  $c: dy-output-function($c, background-color, lighten, 'this.color', 90%)
 
   &.primary
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
     
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
   &.danger
-    $component: dy-define-version($component, color, red)
+    $c: dy-define-version($c, color, red)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 
 Each of those types (`.primary`, `.success`, `.danger`) can't coexist with the others. A button can't be both `.success` and `.danger`. That's what makes them Versions, their separateness.
@@ -247,32 +323,32 @@ Even though Versions shouldn't overlap, you can have different *kinds* of Versio
 
 ```sass
 .button
-  $component: dy-deployable()
+  $c: dy-deployable()
 
   // states, outputs, and versions for coloring
-  $component: dy-define-state($component, color, black)
-  $component: dy-output($component, color)
-  $component: dy-output($component, border-color, color)
+  $c: dy-define-state($c, color, black)
+  $c: dy-output($c, color)
+  $c: dy-output($c, border-color, color)
 
   &.primary
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
     
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
 
   // states, outputs, and versions for sizing
-  $component: dy-define-state($component, font-size, 16px)
-  $component: dy-output($component, font-size)
-  $component: dy-output($component, line-height, font-size * 1.5)
+  $c: dy-define-state($c, font-size, 16px)
+  $c: dy-output($c, font-size)
+  $c: dy-output($c, padding, font-size)
 
   &.big
-    $component: dy-define-version($component, font-size, 20px)
+    $c: dy-define-version($c, font-size, 20px)
 
   &.small
-    $component: dy-define-version($component, font-size, 12px)
+    $c: dy-define-version($c, font-size, 12px)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 
 Now when you make buttons in your templates, you can use Versions for colors and for sizes together, like `.button.primary.big`. As long as these interleaved Versions don't operate on the same States, they'll work great.
@@ -305,21 +381,21 @@ You can create more specific versions to handle these kinds of situations.
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &.open:first-child
-    $component: dy-define-version($component, color, silver)
+    $c: dy-define-version($c, color, silver)
 
   &.open
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
 
   &:first-child
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
-  +dy-build($component)
+  +dy-build($c)
 ``` -->
 
 
@@ -329,18 +405,18 @@ You can define Transforms on the component. These work very similarly to Version
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
   &:hover
-    $component: dy-define-transform(color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform(color, fade-out, 'this.color', 0.2)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 ```sass
 .deployable-component
@@ -361,174 +437,146 @@ Transforms will be applied to all versions, so you only have to declare them onc
 
 ### Compounding Transforms
 
-Right now, each transform is only applied once to each version, and they aren't compounded on top of each other. This means that transforms are only applied one at a time.
+All transforms you define will be compounded on top of each other, in every combination. This means that when something has multiple transforms applied to it at the same time, all the transform functions will be run in order of their definition.
 
-Here's an example:
+Here's an example.
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &:hover
-    $component: dy-define-transform($component, color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform($c, color, fade-out, 'this.color', 0.2)
 
   &.open
-    $component: dy-define-transform($component, color, adjust-hue, 'this.color', 180deg)
+    $c: dy-define-transform($c, color, adjust-hue, 'this.color', 180deg)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 ```sass
 .deployable-component
   color: red
 
-  // see how neither of these has the other one defined for it?
-  // which one of these will be applied is dependent on css specificity
+  // first both of them by themselves
   &:hover
     color: fade-out(red, 0.2)
 
   &.open
     color: adjust-hue(red, 180deg)
+
+  // then both together
+  &.open:hover
+    // first the fade-out is applied,
+    // since :hover was specified first,
+    // and then the adjust-hue
+    color: adjust-hue(fade-out(red, 0.2), 180deg)
 ```
 
-Allowing transforms to compound on top of each other is a feature planned for the next version of this package.
-
-For now, you can just create more specific transforms.
+This compounding also occurs for content references. When two transforms both specify an output for an attribute, the one that was defined *last* will win.
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &:hover
-    $component: dy-define-transform(color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform($c, color, fade-out, 'this.color', 0.2)
+    $c: dy-output-function($c, color, desaturate, 'this.color', 10%))
 
   &.open
-    $component: dy-define-transform(color, adjust-hue, 'this.color', 180deg)
+    $c: dy-define-transform($c, color, adjust-hue, 'this.color', 180deg)
+    $c: dy-output-function($c, color, desaturate, 'this.color', 20%))
 
-  &.open:hover
-    $component: dy-define-transform(color, darken, 'this.color', 30%)
-
-  +dy-build($component)
+  +dy-build($c)
 ```
 ```sass
 .deployable-component
   color: red
 
-  &.open
-    color: adjust-hue(red, 180)
-
+  // for all of these, the transform function(s) happen before the output function
   &:hover
-    color: fade-out(red, 0.2)
+    color: desaturate(fade-out(red, 0.2), 10%)
+
+  &.open
+    color: desaturate(adjust-hue(red, 180deg), 20%)
 
   &.open:hover
-    color: darken(red, 30)
+    // here 20% desaturate happens, because open was defined last
+    color: desaturate(adjust-hue(fade-out(red, 0.2), 180deg), 20%)
 ```
 
-### Mingling Versions and Transforms
+If you like, you can provide your own compound Transforms. These will override all transform functions or content references you defined in the constituent Transforms, and only use the things you explicitly define.
+
+```sass
+.deployable-component
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
+
+  $c: dy-output($c, color)
+
+  &:hover
+    $c: dy-define-transform($c, color, fade-out, 'this.color', 0.2)
+    $c: dy-output-function($c, color, desaturate, 'this.color', 10%))
+
+  &.open
+    $c: dy-define-transform($c, color, adjust-hue, 'this.color', 180deg)
+    $c: dy-output-function($c, color, desaturate, 'this.color', 20%))
+
+  &.open:hover
+    $c: dy-define-transform($c, color, adjust-hue, 'this.color', 180deg)
+
+  +dy-build($c)
+```
+```sass
+.deployable-component
+  color: red
+
+  &:hover
+    color: desaturate(fade-out(red, 0.2), 10%)
+
+  &.open
+    color: desaturate(adjust-hue(red, 180deg), 20%)
+
+  &.open:hover
+    // notice how this doesn't use anything from :hover and .open?
+    // neither the fade-out from :hover, nor the desaturate from either
+    // this transform stands on it's own
+    color: adjust-hue(red, 180deg)
+```
+
+Obviously, the more Transforms you have the crazier the number of combinations can get (`(2 ^ n) - 1` to be exact). For the next version of this functionality, there will be an ability to control which Transforms compound and which don't, but for now just don't go too crazy.
+
+
+
+## Mingling Versions and Transforms
 
 It isn't allowed to mix versions and transforms in the same block.
 
 ```sass
 .deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, red)
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
     // -> ERROR, can't mingle versions and transforms
-    $component: dy-define-transform(color, saturate, 'this.color', 10%)
+    $c: dy-define-transform(color, saturate, 'this.color', 10%)
 
   &:hover
-    $component: dy-define-transform(color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform(color, fade-out, 'this.color', 0.2)
     
     // -> ERROR, can't mingle versions and transforms
-    $component: dy-define-version($component, color, gray)
+    $c: dy-define-version($c, color, gray)
 
-  +dy-build($component)
-```
-
-
-
-## Content References
-
-In order to output the state values in a way that will be remembered and used for every Version, you can use the `dy-output` and `dy-output-function` functions. You can even call these functions in nested blocks, and they'll still work exactly as expected.
-
-```sass
-.deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
-
-  // has two forms
-  // one that outputs to the css property with the same name
-  $component: dy-output($component, color)
-  // -> color: the value of color
-
-  // and one that outputs to a named css property
-  $component: dy-output($component, border-color, color)
-  // -> border-color: the value of color
-
-
-  // supply the css property to be output to,
-  // the function name,
-  // and the list of arguments,
-  // using the format 'this.statevar' to refer to state properties
-  $component: dy-output-function($component, background-color, adjust-hue, 'this.color', 180)
-
-
-  .nested-block
-    // every version will have a .nested-block with the appropriate background-color
-    $component: dy-output($component, background-color, color)
-
-
-  // ... versions and transforms ...
-
-  +dy-build($component)
-```
-
-
-### Content Overrides
-
-In different Versions and Transforms, you can override the content outputs, or add new ones.
-
-```sass
-.deployable-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, red)
-
-  $component: dy-output($component, color)
-  $component: dy-output($component, border-color, color)
-
-  &.primary
-    $component: dy-define-state($component, color, green)
-
-    // this will override the normal "border-color: color" output
-    $component: dy-output-function($component, border-color, lighten, 'this.color', 10%)
-
-    // this will only output for this version
-    $component: dy-output($component, background-color, color)
-    
-
-  +dy-build($component)
-```
-Compiles to something like:
-
-```sass
-.deployable-component
-  color: red
-  border-color: red
-
-  &.primary
-    color: green
-    border-color: lighten(green, 10%)
-    background-color: green
+  +dy-build($c)
 ```
 
 
@@ -540,94 +588,94 @@ In order to also get the benefits of Sass `@extend`, call the `dy-extend` mixin.
 
 ```sass
 .parent-component
-  $component: dy-deployable()
-  $component: dy-define-state($component, color, black)
+  $c: dy-deployable()
+  $c: dy-define-state($c, color, black)
 
   // here's a normal css attribute
   // which will be carried over by dy-extend
   width: 100%
 
-  $component: dy-output($component, color)
+  $c: dy-output($c, color)
 
   &:hover
-    $component: dy-define-transform(color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform(color, fade-out, 'this.color', 0.2)
 
-  +dy-build($component)
+  +dy-build($c)
 
-  // this is necessary to make the $component available to other scopes
-  $parent: $component !global
+  // this is necessary to make the $c available to other scopes
+  $parent: $c !global
 
 .child-component
-  $component: dy-deployable($parent)
+  $c: dy-deployable($parent)
   +dy-extend($parent)
 
   &.primary
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
 
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 
 This is just as useful with extend-only selectors. Just skip the `dy-build` call.
 
 ```sass
 %hoverable
-  $component: dy-deployable()
+  $c: dy-deployable()
 
   &:hover
-    $component: dy-define-transform(color, fade-out, 'this.color', 0.2)
+    $c: dy-define-transform(color, fade-out, 'this.color', 0.2)
 
-  $hoverable: $component !global
+  $hoverable: $c !global
 
 .deployable-component
-  $component: dy-deployable($hoverable)
+  $c: dy-deployable($hoverable)
   +dy-extend($hoverable)
 
   // ... etc ...
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 
 ### Extendable Libraries
 
-Since Deployables are essentially just maps stored in a variable like `$component`, they can be shared in libraries that would allow users to extend existing components. As long as the variables are made global and available, anyone can work with them.
+Since Deployables are essentially just maps stored in a variable like `$c`, they can be shared in libraries that would allow users to extend existing components. As long as the variables are made global and available, anyone can work with them.
 
 ```sass
 // in a package called 'cool-buttons'
 // 'main.sass'
 %cool-btn
-  $component: dy-deployable()
+  $c: dy-deployable()
 
-  $component: dy-define-state($component, color, black)
-  $component: dy-output($component, color)
-  $component: dy-output($component, border-color, color)
+  $c: dy-define-state($c, color, black)
+  $c: dy-output($c, color)
+  $c: dy-output($c, border-color, color)
 
   &.primary
-    $component: dy-define-version($component, color, blue)
+    $c: dy-define-version($c, color, blue)
     
   &.success
-    $component: dy-define-version($component, color, green)
+    $c: dy-define-version($c, color, green)
 
-  $cool-btn-component: $component !global
+  $cool-btn-component: $c !global
 
 
 // in user code
 @import 'cool-buttons/main'
 .extended-btn
-  $component: dy-deployable($cool-btn-component)
+  $c: dy-deployable($cool-btn-component)
   +dy-extend($cool-btn-component)
 
   // overriding an old Version
   &.primary
-    $component: dy-define-version($component, color, cyan)
+    $c: dy-define-version($c, color, cyan)
 
   // creating a new Version
   &.danger
-    $component: dy-define-version($component, color, red)
+    $c: dy-define-version($c, color, red)
 
-  +dy-build($component)
+  +dy-build($c)
 ```
 
 
@@ -635,9 +683,10 @@ Since Deployables are essentially just maps stored in a variable like `$componen
 
 **Features**
 
-- [ ] transform compounding
-- [ ] hidden `$component` object saving, so the calls aren't so cluttered
+- [x] transform compounding
+- [ ] hidden `$c` object saving, so the calls aren't so cluttered
 - [ ] getting rid of `dy-extend` and calling `@extend` in `dy-deployable`
+- [ ] computed states
 - [ ] more flexible version definitions, allowing the `&` to be in different places
 - [ ] "related" versions, ones that are derived from a base value
 
@@ -650,3 +699,26 @@ Since Deployables are essentially just maps stored in a variable like `$componen
 ## Contributing
 
 If you'd like to contribute, just fork the project and then make a pull request!
+
+
+
+
+
+
+
+
+<!-- ```sass
+.component
+  +dy-deployable
+
+  +dy-define-state(margin, '1ru')
+
+  +dy-define-computed-state(margin-left, eval-margin, 'left', 'this.margin')
+
+  // sass doesn't output if the thing you output is null
+  // if color is null, nothing will be output
+  +dy-output(color)
+
+  // if the function you pass could return null, then nothing will be output
+  +dy-output-function(color, thing-that-might-null, 'this.color')
+``` -->

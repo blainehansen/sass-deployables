@@ -100,3 +100,102 @@
 
 // $buried-list: (key: (next: (other: (obj, thing, stuff, man))))
 // @debug map-deep-push($buried-list, key, next, other, dude)
+
+
+
+
+
+/// things for power sets
+
+// returns true if every item is true
+@function bool-list-full($bool-list)
+	@each $bool in $bool-list
+		// fi any item is false, the thing is not full
+		@if not $bool
+			@return false
+
+	// if we get here, every item is true
+	@return true
+
+
+@function increment-bool-list($bool-list)
+	// the first 0 we encounter needs to be flipped
+	// and all 1's previous to it need to be set to 0
+	@for $i from 1 through length($bool-list)
+		$bool: nth($bool-list, $i)
+		@if not $bool
+			$bool-list: set-nth($bool-list, $i, true)
+
+			@for $j from 1 to $i
+				$bool-list: set-nth($bool-list, $j, false)
+
+			@return $bool-list
+
+	// in this situation, the list is full
+	@error "a full bool-list was passed to increment list"
+
+
+@function set-from-bool-list($list, $bool-list)
+	$set: ()
+
+	@for $i from 1 through length($list)
+		$bool: nth($bool-list, $i)
+
+		@if $bool
+			$item: nth($list, $i)
+			$set: append($set, $item)
+
+	@return $set
+
+
+@function power-set($list)
+	// create a "binary-like" list of flags indicating whether an item is included
+	$bool-list: ()
+	@each $i in $list
+		$bool-list: append($bool-list, false)
+
+	$all-sets: ()
+	@while not bool-list-full($bool-list)
+		$bool-list: increment-bool-list($bool-list)
+
+		$new-set: set-from-bool-list($list, $bool-list)
+		$all-sets: append($all-sets, $new-set)
+
+	@return $all-sets
+
+
+@function selector-unify-all($selectors...)
+	@if length($selectors) == 1
+		@return nth($selectors, 1)
+
+	$unified: selector-unify(nth($selectors, 1), nth($selectors, 2))
+
+	@if length($selectors) == 2
+		@return $unified
+
+	@for $i from 3 through length($selectors)
+		$unified: selector-unify($unified, nth($selectors, $i))
+
+	@return $unified
+
+$selectors: (':hover', '#thing', '[target=_blank]', '.other')
+
+// .component
+// 	@each $set in power-set($selectors)
+// 		@debug $set
+// 		@debug selector-unify-all(&, $set...)
+// 		@debug ''
+
+
+
+// // @debug selector-append('[target=_blank]', ':hover', '.a', '.b', 'span')
+// .component
+// 	// in order to support this, we have to detect these situations and use @at-root in dy-build as well
+// 	@at-root span#{&}
+// 		@debug &
+// 		@debug #{&}
+// 		color: red
+
+// 	// @debug selector-unify-all('[target=_blank]', ':hover', '.a', '.b', 'span', &)
+// 	// #{selector-unify-all('[target=_blank]', ':hover', '.a', '.b', 'span', &)}
+// 	// 	color: red

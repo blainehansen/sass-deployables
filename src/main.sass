@@ -123,62 +123,132 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 	// strip out the default state map
 	$default-blocks: map-remove($default-blocks, '-state')
 
+
+	/// versions
+
 	// for all versions, including default
 	@each $version-name, $version-blocks in $versions
+		// create state map, filling in with default state map (if not default)
+		$version-state: ()
+		@if $version-name == '-default'
+			$version-state: $default-state
+
+		@else
+			$version-state: map-get($version-blocks, '-state')
+			$version-state: map-merge($default-state, $version-state)
+
+		$version-blocks: map-remove($version-blocks, '-state')
+
+		// fill in block with defaults (if not default)
+		@if $version-name != '-default'
+			$version-blocks: -dy-fill-blocks($default-blocks, $version-blocks)
+
+
 		+-dy-output-in-version($version-name)
-
-			// create state map, filling in with default state map (if not default)
-			$version-state: ()
-			@if $version-name == '-default'
-				$version-state: $default-state
-
-			@else
-				$version-state: map-get($version-blocks, '-state')
-				$version-state: map-merge($default-state, $version-state)
-
-			$version-blocks: map-remove($version-blocks, '-state')
-
-			// fill in block with defaults (if not default)
-			@if $version-name != '-default'
-				$version-blocks: -dy-fill-blocks($default-blocks, $version-blocks)
-
 			// for all blocks
 			@each $version-block-name, $version-block-outputs in $version-blocks
-
 				// output block with the state map
 				+-dy-output-in-block($version-block-name)
 					+-dy-apply-outputs($version-state, $version-block-outputs)
 
-			// for all transforms
-			@if $transforms
-				@each $transform-name, $transform-blocks in $transforms
-					&#{$transform-name}
 
-						// create transformed state map for this version
-						$transform-actions: map-get($transform-blocks, '-actions')
-						$transform-blocks: map-remove($transform-blocks, '-actions')
+			/// transforms
 
-						$transform-state: ()
+			// for all unique sets of transforms in the power set of transform names
+			@if not $transforms
+				$transforms: ()
+
+			@each $transform-name-set in power-set(map-keys($transforms))
+				// if a transform exists with the unified name of this set
+				// skip this set
+				// taking into account lone selectors
+				$considered: false
+				@if length($transform-name-set) > 1
+					$unified-selector: selector-unify-all($transform-name-set...)
+
+					@each $transform-name in $transforms
+						@if selector-unify-all(simple-selectors($transform-name)...) == $unified-selector
+							$considered: true
+
+				@if not $considered
+					// create transformed state map
+					// perform mutations for all transforms in key order
+					$transform-state: ()
+					$underlying-state: $version-state
+
+					$transform-blocks: ()
+					$underlying-blocks: $version-blocks
+
+					@each $transform-name in $transform-name-set
+						$current-transform-blocks: map-get($transforms, $transform-name)
+						$transform-actions: map-get($current-transform-blocks, '-actions')
+						
 						// now actually do the transformation
 						@each $var, $action in $transform-actions
 							$func: nth($action, 1)
 							$func-args: list-slice($action, 2)
 
-							$func-args: -dy-resolve-state-refs($version-state, $func-args)
+							$func-args: -dy-resolve-state-refs($underlying-state, $func-args)
 
 							$transformed-value: call($func, $func-args...)
 							$transform-state: map-set($transform-state, $var, $transformed-value)
 
-						$transform-state: map-merge($version-state, $transform-state)
+						// apply it to running state
+						$transform-state: map-merge($underlying-state, $transform-state)
+						$underlying-state: $transform-state
 
 
-						$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
+						// fill blocks for this set
+						// fill blocks for each transform in key order
+						$current-transform-blocks: map-remove($current-transform-blocks, '-actions')
+						$transform-blocks: -dy-fill-blocks($underlying-blocks, $current-transform-blocks)
+						$underlying-blocks: $transform-blocks
 
+
+					// now with fully mutated state and blocks
+					// output for this transform set
+					&#{selector-unify-all($transform-name-set...)}
 						// for all blocks
 						@each $transform-block-name, $transform-block-outputs in $transform-blocks
 							// output block with transformed state map
 							+-dy-output-in-block($transform-block-name)
 								+-dy-apply-outputs($transform-state, $transform-block-outputs)
+
+
+
+
+			// /// old
+
+			// // for all transforms
+			// @if $transforms
+			// 	@each $transform-name, $transform-blocks in $transforms
+			// 		&#{$transform-name}
+
+			// 			// create transformed state map for this version
+			// 			$transform-actions: map-get($transform-blocks, '-actions')
+			// 			$transform-blocks: map-remove($transform-blocks, '-actions')
+
+			// 			$transform-state: ()
+			// 			// now actually do the transformation
+			// 			@each $var, $action in $transform-actions
+			// 				$func: nth($action, 1)
+			// 				$func-args: list-slice($action, 2)
+
+			// 				$func-args: -dy-resolve-state-refs($version-state, $func-args)
+
+			// 				$transformed-value: call($func, $func-args...)
+			// 				$transform-state: map-set($transform-state, $var, $transformed-value)
+
+			// 			$transform-state: map-merge($version-state, $transform-state)
+
+
+			// 			$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
+
+			// 			// for all blocks
+			// 			@each $transform-block-name, $transform-block-outputs in $transform-blocks
+			// 				// output block with transformed state map
+			// 				+-dy-output-in-block($transform-block-name)
+			// 					+-dy-apply-outputs($transform-state, $transform-block-outputs)
 
 
 
