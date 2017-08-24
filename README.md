@@ -156,14 +156,14 @@ Using Deployables will help you cut down on a huge amount of redundancy.
 
 ## API
 
-There are six functions to create Deployables, and one mixin to build them.
+There are six mixins to create Deployables, and one to build them.
 
-- `@function dy-deployable($parent-component: null)`
-- `@function dy-define-state($name, $value)`
-- `@function dy-define-version($name, $value)`
-- `@function dy-define-transform($name, $func, $func-args...)`
-- `@function dy-output($css-prop, $var-name: null)`
-- `@function dy-output-function($css-prop, $func, $func-args...)`
+- `@mixin dy-deployable($parent-component: null)`
+- `@mixin dy-define-state($name, $value)`
+- `@mixin dy-define-version($name, $value)`
+- `@mixin dy-define-transform($name, $func, $func-args...)`
+- `@mixin dy-output($css-prop, $var-name: null)`
+- `@mixin dy-output-function($css-prop, $func, $func-args...)`
 - `@mixin dy-build($c)`
 
 Thorough explanations are given below.
@@ -657,7 +657,7 @@ Because they can be inherited, Deployables can be shared in libraries.
 
 
 // in user code
-@import 'cool-buttons/main'
+@import 'path/to/packages/cool-buttons/main'
 .extended-btn
   +dy-deployable('%cool-btn')
 
