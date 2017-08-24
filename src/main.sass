@@ -111,7 +111,13 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 
 
 
-@mixin dy-build($component, $compound: null)
+// @mixin dy-build($compound: null)
+@mixin dy-build
+	$current: -dy-amp()
+	$component: -dy-get-from-manifest($current)
+	@if not $component
+		@error "can't build anywhere but the root context of a valid deployable; couldn't resolve a deployable from selector: #{$amp}"
+
 	$transforms: map-get($component, '-transforms')
 	$versions: map-get($component, '-versions')
 
@@ -216,42 +222,6 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 
 
 
-
-			// /// old
-
-			// // for all transforms
-			// @if $transforms
-			// 	@each $transform-name, $transform-blocks in $transforms
-			// 		&#{$transform-name}
-
-			// 			// create transformed state map for this version
-			// 			$transform-actions: map-get($transform-blocks, '-actions')
-			// 			$transform-blocks: map-remove($transform-blocks, '-actions')
-
-			// 			$transform-state: ()
-			// 			// now actually do the transformation
-			// 			@each $var, $action in $transform-actions
-			// 				$func: nth($action, 1)
-			// 				$func-args: list-slice($action, 2)
-
-			// 				$func-args: -dy-resolve-state-refs($version-state, $func-args)
-
-			// 				$transformed-value: call($func, $func-args...)
-			// 				$transform-state: map-set($transform-state, $var, $transformed-value)
-
-			// 			$transform-state: map-merge($version-state, $transform-state)
-
-
-			// 			$transform-blocks: -dy-fill-blocks($version-blocks, $transform-blocks)
-
-			// 			// for all blocks
-			// 			@each $transform-block-name, $transform-block-outputs in $transform-blocks
-			// 				// output block with transformed state map
-			// 				+-dy-output-in-block($transform-block-name)
-			// 					+-dy-apply-outputs($transform-state, $transform-block-outputs)
-
-
-
 /// CREATE
 
 @function -dy-get-prefix($component)
@@ -301,23 +271,39 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 	@error "this scope doesn't exist as a version or a transform"
 
 
+$-dy-deployable-global-manifest: ()
 
-// @function dy-deployable($parent-component: null, $compound: true)
-@function dy-deployable($parent-component: null)
+@mixin -dy-save-to-manifest($component)
+	$prefix: -dy-get-prefix($component)
+	$-dy-deployable-global-manifest: map-merge($-dy-deployable-global-manifest, ($prefix: $component)) !global
+
+
+@function -dy-get-from-manifest($selector)
+	@return map-get($-dy-deployable-global-manifest, $selector)
+
+
+@function -dy-search-manifest($amp)
+	@each $selector in map-keys($-dy-deployable-global-manifest)
+		@if str-index($amp, $selector) == 1
+			@return -dy-get-from-manifest($selector)
+
+	@error "you aren't currently in a valid deployable; couldn't resolve a deployable from selector: #{$amp}"
+
+
+// @mixin dy-deployable($parent-prefix: null, $compound: true)
+@mixin dy-deployable($parent-prefix: null)
 	// TODO need to ensure this is being used in a legal place
 
 	$component: ()
-	@if $parent-component
+	@if $parent-prefix
+		$parent-component: -dy-get-from-manifest($parent-prefix)
 		$component: $parent-component
+		@extend #{$parent-prefix}
+
 
 	$component: map-set($component, '-prefix', -dy-amp())
 
-	@return $component
-
-
-@mixin dy-extend($parent-component)
-	$parent-prefix: map-get($parent-component, '-prefix')
-	@extend #{$parent-prefix}
+	+-dy-save-to-manifest($component)
 
 
 @function -dy-ensure-scope($component, $type, $scope)
@@ -344,65 +330,65 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 	@return map-deep-set($component, $type, $scope, $state-or-actions, $name, $value)
 
 
-@function dy-define-state($component, $name, $value)
+@mixin dy-define-state($name, $value)
+	$current: -dy-amp()
+	$component: -dy-get-from-manifest($current)
+
 	// if the prefix of the component doesn't agree with the current amp, then this isn't a valid place
 	$prefix: map-get($component, '-prefix')
-	$current: -dy-amp()
 	@if $prefix != $current
 		@if str-index($current, ' ')
-			@error "ERROR, invalid location to set state"
+			@error "invalid location to set state: #{$current}"
 
-		@error "ERROR, can't call dy-define-state in versions or transforms"
+		@error "can't call dy-define-state in versions or transforms: #{$current}"
 
 	// @if map-deep-has-key($component, $type: '-versions', $scope: '-default', $name: $name)
-	// 	@error "ERROR, can't override an existing state variable in the same version."
+	// 	@error "can't override an existing state variable in the same version."
 
 	$component: -dy-define-state-internal($component, $type: '-versions', $scope: '-default', $name: $name, $value: $value)
 
-	@return $component
+	+-dy-save-to-manifest($component)
 
 
-@function dy-define-version($component, $name, $value)
-	$prefix: map-get($component, '-prefix')
-	$current: -dy-amp()
+@mixin -dy-check-valid-version-or-transform($v-t, $current, $component, $scope)
+	$prefix: -dy-get-prefix($component)
 	@if $prefix == $current
-		@error "ERROR, can't create a version at the base"
+		@error "can't create a #{$v-t} at the base: #{$current}"
 
 	@if str-index($current, ' ')
-		@error "ERROR, can't create a version in a nested block. you must be in a modified form of the base"
+		@error "can't create a #{$v-t} in a nested block. you must be in a modified form of the base: #{$current}"
+
+	$counter-type: '-#{if($v-t == 'version', 'transform', 'version')}s'
+
+	@if map-deep-has-key($component, $counter-type, $scope)
+		@error "can't mingle versions and transforms: #{$current}"
+
+
+@mixin dy-define-version($name, $value)
+	$current: -dy-amp()
+	$component: -dy-search-manifest($current)
 
 	$scope: -dy-resolve-scope($component)
 	$type: '-versions'
 
-	@if map-deep-has-key($component, '-transforms', $scope)
-		@error "ERROR, can't mingle versions and transforms"
+	+-dy-check-valid-version-or-transform('version', $current, $component, $scope)
 
 	$component: -dy-define-state-internal($component, $type, $scope, $name, $value)
+	+-dy-save-to-manifest($component)
 
-	@return $component
 
-
-@function dy-define-transform($component, $name, $func, $func-args...)
-	$prefix: map-get($component, '-prefix')
+@mixin dy-define-transform($name, $func, $func-args...)
 	$current: -dy-amp()
-	@if $prefix == $current
-		@error "ERROR, can't create a transform at the base"
-
-	@if str-index($current, ' ')
-		@error "ERROR, can't create a transform in a nested block. you must be in a modified form of the base"
-
+	$component: -dy-search-manifest($current)
+	
 	$scope: -dy-resolve-scope($component)
 	$type: '-transforms'
 
-	@if map-deep-has-key($component, '-versions', $scope)
-		@error "ERROR, can't mingle versions and transforms"
-	
-	// then set the real thing
+	+-dy-check-valid-version-or-transform('transform', $current, $component, $scope)
+
 	$value-arr: join(($func), $func-args)
-
 	$component: -dy-define-state-internal($component, $type, $scope, $name, $value-arr)
-
-	@return $component
+	+-dy-save-to-manifest($component)
 
 
 @function -dy-output-internal($component, $value)
@@ -424,15 +410,23 @@ $-dy-blank-transform: ('-actions': (), '-base': ())
 	@return map-deep-push($component, $type, $scope, $block, $value)
 
 
-@function dy-output($component, $css-name, $var-name: null)
+@mixin dy-output($css-name, $var-name: null)
+	$current: -dy-amp()
+	$component: -dy-search-manifest($current)
+
 	@if not $var-name
 		$var-name: $css-name
 
-	@return -dy-output-internal($component, ($css-name, $var-name))
+	$component: -dy-output-internal($component, ($css-name, $var-name))
+	+-dy-save-to-manifest($component)
 
 
-@function dy-output-function($component, $css-name, $func, $func-args...)
+@mixin dy-output-function($css-name, $func, $func-args...)
+	$current: -dy-amp()
+	$component: -dy-search-manifest($current)
+
 	$value-arr: ($css-name, $func)
 	$value-arr: join($value-arr, $func-args)
 
-	@return -dy-output-internal($component, $value-arr)
+	$component: -dy-output-internal($component, $value-arr)
+	+-dy-save-to-manifest($component)

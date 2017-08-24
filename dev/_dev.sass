@@ -1,5 +1,8 @@
 @import '../src/main'
 
+
+
+
 @function div-two($num)
 	@return $num / 2
 
@@ -7,86 +10,94 @@
 	@return $num + 2px
 
 .two-transforms
-	$c: dy-deployable()
+	+dy-deployable
 
-	$c: dy-define-state($c, size, 10px)
-	$c: dy-output($c, size)
-	$c: dy-output($c, font-size, size)
+	+dy-define-state(size, 10px)
+	+dy-output(size)
+	+dy-output(font-size, size)
 
 	&.big
-		$c: dy-define-version($c, size, 12px)
+		+dy-define-version(size, 12px)
 
 	&.small
-		$c: dy-define-version($c, size, 8px)
+		+dy-define-version(size, 8px)
 
 
 	&:hover
-		$c: dy-define-transform($c, size, add-two, 'this.size')
-		$c: dy-output-function($c, font-size, add-two, 'this.size')
+		+dy-define-transform(size, add-two, 'this.size')
+		+dy-output-function(font-size, add-two, 'this.size')
 
 	&.open
-		$c: dy-define-transform($c, size, div-two, 'this.size')
-		$c: dy-output-function($c, font-size, div-two, 'this.size')
+		+dy-define-transform(size, div-two, 'this.size')
+		+dy-output-function(font-size, div-two, 'this.size')
 
 	&.open:hover
-		$c: dy-define-transform($c, size, div-two, 'this.size')
+		+dy-define-transform(size, div-two, 'this.size')
 		
 
-
-	+dy-build($c)
-
+	+dy-build
 
 
 
 
-// %grayable
-// 	$c: dy-deployable()
-// 	width: 100px
-// 	box-shadow: gray
 
-// 	&.grayscale
-// 		$c: dy-define-transform($c, color, grayscale, 'this.color')
+%grayable
+	+dy-deployable
+	width: 100px
+	box-shadow: gray
 
-// 	$grayable: $c !global
+	&.grayscale
+		+dy-define-transform(color, grayscale, 'this.color')
 
 
-// .fake-button
-// 	$c: dy-deployable($grayable)
-// 	+dy-extend($grayable)
-// 	// $c: dy-deployable()
+.fake-button
+	+dy-deployable('%grayable')
+	// +dy-deployable
 
-// 	$c: dy-define-state($c, color, red)
+	+dy-define-state(color, red)
 
-// 	$c: dy-output($c, color)
-// 	$c: dy-output($c, background-color, color)
+	+dy-output(color)
+	+dy-output(background-color, color)
 
-// 	.nested-block
-// 		$c: dy-output($c, border-color, color)
+	.nested-block
+		+dy-output(border-color, color)
 
-// 	&.primary
-// 		$c: dy-define-version($c, color, blue)
+	&.primary
+		+dy-define-version(color, blue)
 
-// 		.nested-block
-// 			$c: dy-output($c, color)
+		.nested-block
+			+dy-output(color)
 
-// 	&.success
-// 		$c: dy-define-version($c, color, green)
+	&.success
+		+dy-define-version(color, green)
 
-// 		$c: dy-output($c, fake, color)
+		+dy-output(fake, color)
 
-// 	&:hover
-// 		$c: dy-define-transform($c, color, fade-out, 'this.color', 0.1)
+	&:hover
+		+dy-define-transform(color, fade-out, 'this.color', 0.1)
 
-// 		$c: dy-output-function($c, background-color, darken, 'this.color', 20%)
+		+dy-output-function(background-color, darken, 'this.color', 20%)
 
-// 	@debug $c
+	+dy-build
 
-// 	+dy-build($c)
+.no-transforms
+	+dy-deployable
 
-// .no-transforms
-// 	$c: dy-deployable()
+	+dy-define-state(color, red)
+	+dy-output(color)
 
-// 	$c: dy-define-state($c, color, red)
-// 	$c: dy-output($c, color)
+	&.success
+		+dy-define-version(color, green)
 
-// 	+dy-build($c)
+	+dy-build
+
+.no-versions
+	+dy-deployable
+
+	+dy-define-state(color, red)
+	+dy-output(color)
+
+	&:hover
+		+dy-define-transform(color, fade-out, 'this.color', 0.1)
+
+	+dy-build
